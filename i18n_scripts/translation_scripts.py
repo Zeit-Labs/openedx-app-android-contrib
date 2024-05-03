@@ -44,9 +44,12 @@ def combine_translations(modules_dir):
         module_translations_tree = etree.parse(translation_file)
         root = module_translations_tree.getroot()
         combined_root = process_module_translations(root, combined_root, module)
+
+        # Put a new line after each module translations.
         if len(combined_root):
             combined_root[-1].tail = '\n\n\t'
 
+    # Unindent the resources closing tag.
     combined_root[-1].tail = '\n'
     return combined_root
 
@@ -67,20 +70,23 @@ def process_module_translations(root, combined_root, module):
     for element in root.getchildren():
         translatable = element.attrib.get('translatable', True)
         if (
-                translatable and translatable != 'false'
-                and element.tag in ['string', 'string-array', 'plurals']
-                and element.nsmap
-                and not element.attrib.get('{%s}ignore' % element.nsmap["tools"])
+                translatable and translatable != 'false'  # Check for the translatable property.
+                and element.tag in ['string', 'string-array', 'plurals']  # Only those types are read by transifex.
+                and (not element.nsmap
+                     or element.nsmap and not element.attrib.get('{%s}ignore' % element.nsmap["tools"]))
         ):
             element.attrib['name'] = '.'.join([module, element.attrib.get('name')])
 
+            # If there was a comment before the current element add it first.
             if isinstance(previous_element, etree._Comment):
                 previous_element.tail = '\n\t'
                 combined_root.append(previous_element)
 
+            # Indent all elements with on tab.
             element.tail = '\n\t'
             combined_root.append(element)
 
+        # To check for comments in the next round.
         previous_element = element
 
     return combined_root
