@@ -25,104 +25,66 @@ def get_modules_to_translate(modules_dir):
             modules_list.append(module)
     return modules_list
 
-
-def get_translations(modules_dir):
+def combine_translations(modules_dir):
     """
-    Retrieve the translations from all specified modules as OrderedDict.
+    Combine translations from all specified modules into a single XML element.
 
     Parameters:
         modules_dir (str): The directory containing the modules.
 
     Returns:
-        {
-        module: [
-                {
-                    'name': 'long_name',
-                    'tag_type': string, string-array, or plurals,
-                    'product': product_number or None,
-                    'items': [],
-                    'comment': comment_tag,
-                }.
-                {
-                    etc
-                },
-            ]
-        }
-        OrderedDict of dict: An ordered dict of dictionaries containing the 'key', 'value', and 'comment' for each
-        translation line. The key of the outer OrderedDict consists of the value of the translation key combined with
-        the name of the module containing the translation.
+        etree.Element: An XML element representing the combined translations.
     """
     combined_root = etree.Element('resources')
+    combined_root.text = '\n\t'
 
     modules = get_modules_to_translate(modules_dir)
     for module in modules:
         translation_file = get_translation_file_path(modules_dir, module)
         module_translations_tree = etree.parse(translation_file)
         root = module_translations_tree.getroot()
+        combined_root = process_module_translations(root, combined_root, module)
+        if len(combined_root):
+            combined_root[-1].tail = '\n\n\t'
 
-        previous_element = None
-
-        for element in root.getchildren():
-            # if translatable, either 'string', 'string-array', or 'plurals' and there is no ignor in that tag:
-            translatable = element.attrib.get('translatable', True)
-            if (
-                    translatable and translatable != 'false'
-                    and element.tag in ['string', 'string-array', 'plurals']
-                    and element.nsmap
-                    and not element.attrib.get('{%s}ignore' % element.nsmap["tools"])
-            ):
-
-                new_element = element
-                new_element.attrib['name'] = '.'.join([module, element.attrib.get('name')])
-
-                if isinstance(previous_element, etree._Comment):
-                    combined_root.append(previous_element)
-
-                combined_root.append(new_element)
-
-                # translation_entry = {
-                #     'name': element.attrib.get('name'),
-                #     'tag_type': element.tag,
-                # }
-                #
-                # product_property = element.attrib.get('product')
-                # if product_property:
-                #     translation_entry['product'] = product_property
-                #
-                # if isinstance(previous_element, etree._Comment):
-                #     translation_entry['comment'] = previous_element
-                #
-                # if element.tag in ['string-array', 'plurals']:
-                #     translation_entry['items'] = []
-                #     for item in element.getchildren():
-                #         item_data = {'text': item.text}
-                #         quantity_property = item.attrib.get('quantity')
-                #         if quantity_property:
-                #             item_data['quantity'] = quantity_property
-                #         translation_entry['items'].append(item_data)
-                #
-                # elif element.tag == 'string':
-                #     translation_entry['text'] = element.text
-                #
-                # translations_dict[module].append(translation_entry)
-            previous_element = element
-
+    combined_root[-1].tail = '\n'
     return combined_root
 
 
-def get_languages(modules_dir):
-    languages = set()
-    modules = [
-        module for module in os.listdir(modules_dir)
-        if os.path.exists(os.path.join(modules_dir, module, 'src', 'main', 'res'))  # ==> is_translatable_module
+def process_module_translations(root, combined_root, module):
+    """
+    Process translations from a module and append them to the combined translations.
 
-    ]
-    for module in modules:
-        if os.path.isdir(os.path.join(modules_dir, module, 'src', 'main', 'res')):
-            lang_list = [elem.strip('values') for elem in os.listdir(os.path.join(modules_dir, module, 'src', 'main', 'res'))
-                         if elem.startswith('values')]
-            languages.update(lang_list)
-    return languages
+    Parameters:
+        root (etree.Element): The root element of the module translations.
+        combined_root (etree.Element): The combined translations root element.
+        module (str): The name of the module.
+
+    Returns:
+        etree.Element: The updated combined translations root element.
+    """
+    previous_element = None
+    for element in root.getchildren():
+        translatable = element.attrib.get('translatable', True)
+        if (
+                translatable and translatable != 'false'
+                and element.tag in ['string', 'string-array', 'plurals']
+                and element.nsmap
+                and not element.attrib.get('{%s}ignore' % element.nsmap["tools"])
+        ):
+            element.attrib['name'] = '.'.join([module, element.attrib.get('name')])
+
+            if isinstance(previous_element, etree._Comment):
+                previous_element.tail = '\n\t'
+                combined_root.append(previous_element)
+
+            element.tail = '\n\t'
+            combined_root.append(element)
+
+        previous_element = element
+
+    return combined_root
+
 
 
 def get_translation_file_path(modules_dir, module):
@@ -158,17 +120,9 @@ def write_translation_file(modules_dir, root):
     combined_translation_dir = os.path.join(modules_dir, 'I18N', 'values')
     os.makedirs(combined_translation_dir, exist_ok=True)
 
-    # with open(os.path.join(combined_translation_dir, 'strings.xml'), 'w') as f:
     tree = etree.ElementTree(root)
     tree.write(os.path.join(combined_translation_dir, 'strings.xml'), encoding='utf-8', xml_declaration=True)
 
-#
-# def write_in_file(f, module, module_dict):
-#     for element in module_dict:
-#         comment = element.get('comment')  # Retrieve the comment, if present
-#         if comment:
-#             f.write(comment)
-        # f.write(f'"{key}" = "{value["value"]}";\n')
 
 def combine_translation_files(modules_dir=None):
     """
@@ -176,7 +130,7 @@ def combine_translation_files(modules_dir=None):
     """
     if not modules_dir:
         modules_dir = os.path.dirname(os.path.dirname(__file__))
-    combined_translation_dict = get_translations(modules_dir)
+    combined_translation_dict = combine_translations(modules_dir)
     write_translation_file(modules_dir, combined_translation_dict)
 
 
