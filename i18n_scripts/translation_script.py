@@ -193,10 +193,7 @@ def separate_translation_to_modules(modules_dir, lang_dir):
     previous_entry = None
     for translation_entry in root.getchildren():
         if not isinstance(translation_entry, etree._Comment):
-            try:
-                module_name, key_remainder = translation_entry.attrib['name'].split('.', maxsplit=1)
-            except:
-                pass
+            module_name, key_remainder = translation_entry.attrib['name'].split('.', maxsplit=1)
             translation_entry.attrib['name'] = key_remainder
 
             # translations_roots.setdefault(module_name, etree.Element('resources'))
