@@ -1,3 +1,20 @@
+"""
+# Translation Management Script
+
+This script is designed to manage translations for a project by performing two operations:
+1) Extracting English translations from all modules.
+2) Splitting translations into separate files for each module and language into a single file.
+
+## Usage
+
+```bash
+python translation_script.py --extract
+
+or
+
+python translation_script.py --split
+
+"""
 import argparse
 import os
 from lxml import etree
@@ -17,12 +34,23 @@ def parse_arguments():
 
 
 def append_element_and_comment(element, previous_element, root):
-    # If there was a comment before the current element add it first.
+    """
+    Appends the given element to the root XML element, preserving the previous element's comment if exists.
+
+    Args:
+        element (etree.Element): The XML element to append.
+        previous_element (etree.Element or None): The previous XML element before the current one.
+        root (etree.Element): The root XML element to append the new element to.
+
+    Returns:
+        None
+    """
+    # If there was a comment before the current element, add it first.
     if isinstance(previous_element, etree._Comment):
         previous_element.tail = '\n\t'
         root.append(previous_element)
 
-    # Indent all elements with on tab.
+    # Indent all elements with one tab.
     element.tail = '\n\t'
     root.append(element)
 
@@ -43,6 +71,18 @@ def get_translation_file_path(modules_dir, module):
 
 
 def write_translation_file(modules_dir, root, module, lang_dir):
+    """
+    Writes the XML root element to a strings.xml file in the specified language directory.
+
+    Args:
+        modules_dir (str): The root directory of the project.
+        root (etree.Element): The root XML element to be written.
+        module (str): The name of the module.
+        lang_dir (str): The language directory to write the XML file to.
+
+    Returns:
+        None
+    """
     combined_translation_dir = os.path.join(modules_dir, module, 'src', 'main', 'res', lang_dir)
     os.makedirs(combined_translation_dir, exist_ok=True)
 
@@ -52,20 +92,22 @@ def write_translation_file(modules_dir, root, module, lang_dir):
 
 def get_modules_to_translate(modules_dir):
     """
-    Retrieve the names of modules that have translation files for a specified language.
+    Retrieves a list of modules to be translated from the specified directory (Project directory).
 
-    Parameters:
-        modules_dir (str): The path to the directory containing all the modules.
+    Args:
+        modules_dir (str): The directory containing the modules.
 
     Returns:
-        list of str: A list of module names that have translation files for the specified language.
+        list of str: A list of module names.
     """
+    # Get all directories within the modules directory except for 'I18N'
     dirs = [
         directory for directory in os.listdir(modules_dir)
         if os.path.isdir(os.path.join(modules_dir, directory)) and directory != 'I18N'
     ]
 
     modules_list = []
+    # Check each directory for a translation file and add it to the list if found
     for module in dirs:
         translation_file = get_translation_file_path(modules_dir, module)
         if os.path.isfile(translation_file):
@@ -173,33 +215,39 @@ def get_languages_dirs(modules_dir):
 
 def separate_translation_to_modules(modules_dir, lang_dir):
     """
-    Separate translations from a translation file into modules.
+    Separates translations from a translation file into modules.
 
     Args:
         modules_dir (str): The directory containing all the modules.
         lang_dir (str): The directory containing the translation file being split.
 
     Returns:
-        dict: A dictionary containing translations split by module. The keys are module names,
-              and the values are lists of dictionaries, each containing the 'key', 'value', and 'comment'
-              for each translation entry within the module.
-
+        dict: A dictionary containing the translations separated by module.
+        {
+            'module_1_name': etree.Element('resources')_1.
+            'module_2_name': etree.Element('resources')_2.
+            ...
+        }
     """
     translations_roots = {}
+    # Parse the translation file
     file_path = os.path.join(modules_dir, 'I18N', 'src', 'main', 'res', lang_dir, 'strings.xml')
     module_translations_tree = etree.parse(file_path)
     root = module_translations_tree.getroot()
     previous_entry = None
+    # Iterate through translation entries
     for translation_entry in root.getchildren():
         if not isinstance(translation_entry, etree._Comment):
+            # Split the key to extract the module name
             module_name, key_remainder = translation_entry.attrib['name'].split('.', maxsplit=1)
             translation_entry.attrib['name'] = key_remainder
 
-            # translations_roots.setdefault(module_name, etree.Element('resources'))
+            # Create a dictionary entry for the module if it doesn't exist
             if module_name not in translations_roots:
                 translations_roots[module_name] = etree.Element('resources')
                 translations_roots[module_name].text = '\n\t'
 
+            # Append the translation entry to the corresponding module
             append_element_and_comment(translation_entry, previous_entry, translations_roots[module_name])
 
         previous_entry = translation_entry
@@ -208,28 +256,28 @@ def separate_translation_to_modules(modules_dir, lang_dir):
 
 def split_translation_files(modules_dir=None):
     """
-    Split translation files into separate files for each module and language.
+    Splits translation files into separate files for each module and language.
 
     Args:
-        modules_dir (str, optional): The directory containing all the modules. If not provided,
-            it defaults to the parent directory of the directory containing this script.
+        modules_dir (str, optional): The directory containing all the modules. Defaults to None.
 
-    Returns:
-        None
-
-    Example:
-        split_translation_files('/path/to/modules')
     """
+    # Set the modules directory if not provided
     if not modules_dir:
         modules_dir = os.path.dirname(os.path.dirname(__file__))
+
+    # Get the directories containing language files
     languages_dirs = get_languages_dirs(modules_dir)
+
+    # Iterate through each language directory
     for lang_dir in languages_dirs:
+        # Separate translations into modules
         translations = separate_translation_to_modules(modules_dir, lang_dir)
+        # Iterate through each module and write its translations to a file
         for module, root in translations.items():
-
-            # Unindent the resources closing tag.
+            # Unindent the resources closing tag
             root[-1].tail = '\n'
-
+            # Write the translation file for the module and language
             write_translation_file(modules_dir, root, module, lang_dir)
 
 
