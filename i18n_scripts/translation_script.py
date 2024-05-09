@@ -16,6 +16,40 @@ def parse_arguments():
     return parser.parse_args()
 
 
+def append_element_and_comment(element, previous_element, root):
+    # If there was a comment before the current element add it first.
+    if isinstance(previous_element, etree._Comment):
+        previous_element.tail = '\n\t'
+        root.append(previous_element)
+
+    # Indent all elements with on tab.
+    element.tail = '\n\t'
+    root.append(element)
+
+
+def get_translation_file_path(modules_dir, module):
+    """
+    Retrieves the path of the translation file from the module name
+
+    Parameters:
+        modules_dir (str): The path to the directory containing all the modules.
+        module (str): The module's name that we want its translation.
+
+    Returns:
+        file_path (str): The module's translation path.
+    """
+    translation_file = os.path.join(modules_dir, module, 'src', 'main', 'res', 'values', 'strings.xml')
+    return translation_file
+
+
+def write_translation_file(modules_dir, root, module, lang_dir):
+    combined_translation_dir = os.path.join(modules_dir, module, 'src', 'main', 'res', lang_dir)
+    os.makedirs(combined_translation_dir, exist_ok=True)
+
+    tree = etree.ElementTree(root)
+    tree.write(os.path.join(combined_translation_dir, 'strings.xml'), encoding='utf-8', xml_declaration=True)
+
+
 def get_modules_to_translate(modules_dir):
     """
     Retrieve the names of modules that have translation files for a specified language.
@@ -37,35 +71,6 @@ def get_modules_to_translate(modules_dir):
         if os.path.isfile(translation_file):
             modules_list.append(module)
     return modules_list
-
-
-def combine_translations(modules_dir):
-    """
-    Combine translations from all specified modules into a single XML element.
-
-    Parameters:
-        modules_dir (str): The directory containing the modules.
-
-    Returns:
-        etree.Element: An XML element representing the combined translations.
-    """
-    combined_root = etree.Element('resources')
-    combined_root.text = '\n\t'
-
-    modules = get_modules_to_translate(modules_dir)
-    for module in modules:
-        translation_file = get_translation_file_path(modules_dir, module)
-        module_translations_tree = etree.parse(translation_file)
-        root = module_translations_tree.getroot()
-        combined_root = process_module_translations(root, combined_root, module)
-
-        # Put a new line after each module translations.
-        if len(combined_root):
-            combined_root[-1].tail = '\n\n\t'
-
-    # Unindent the resources closing tag.
-    combined_root[-1].tail = '\n'
-    return combined_root
 
 
 def process_module_translations(root, combined_root, module):
@@ -99,39 +104,33 @@ def process_module_translations(root, combined_root, module):
     return combined_root
 
 
-def append_element_and_comment(element, previous_element, root):
-    # If there was a comment before the current element add it first.
-    if isinstance(previous_element, etree._Comment):
-        previous_element.tail = '\n\t'
-        root.append(previous_element)
-
-    # Indent all elements with on tab.
-    element.tail = '\n\t'
-    root.append(element)
-
-
-def get_translation_file_path(modules_dir, module):
+def combine_translations(modules_dir):
     """
-    Retrieves the path of the translation file from the module name
+    Combine translations from all specified modules into a single XML element.
 
     Parameters:
-        modules_dir (str): The path to the directory containing all the modules.
-        module (str): The module's name that we want its translation.
+        modules_dir (str): The directory containing the modules.
 
     Returns:
-        file_path (str): The module's translation path.
+        etree.Element: An XML element representing the combined translations.
     """
-    translation_file = os.path.join(modules_dir, module, 'src', 'main', 'res', 'values', 'strings.xml')
-    return translation_file
+    combined_root = etree.Element('resources')
+    combined_root.text = '\n\t'
 
+    modules = get_modules_to_translate(modules_dir)
+    for module in modules:
+        translation_file = get_translation_file_path(modules_dir, module)
+        module_translations_tree = etree.parse(translation_file)
+        root = module_translations_tree.getroot()
+        combined_root = process_module_translations(root, combined_root, module)
 
-def write_translation_file(modules_dir, root, module, lang_dir):
-    # lang_dir = '-'.join(['values', lang]) if lang else 'values'
-    combined_translation_dir = os.path.join(modules_dir, module, 'src', 'main', 'res', lang_dir)
-    os.makedirs(combined_translation_dir, exist_ok=True)
+        # Put a new line after each module translations.
+        if len(combined_root):
+            combined_root[-1].tail = '\n\n\t'
 
-    tree = etree.ElementTree(root)
-    tree.write(os.path.join(combined_translation_dir, 'strings.xml'), encoding='utf-8', xml_declaration=True)
+    # Unindent the resources closing tag.
+    combined_root[-1].tail = '\n'
+    return combined_root
 
 
 def combine_translation_files(modules_dir=None):
@@ -165,7 +164,7 @@ def get_languages_dirs(modules_dir):
     languages_dirs = [
         directory for directory in os.listdir(lang_parent_dir)
         if (
-                directory.startswith('values')
+                directory.startswith('values-')
                 and 'strings.xml' in os.listdir(os.path.join(lang_parent_dir, directory))
         )
     ]
@@ -199,6 +198,7 @@ def separate_translation_to_modules(modules_dir, lang_dir):
             # translations_roots.setdefault(module_name, etree.Element('resources'))
             if module_name not in translations_roots:
                 translations_roots[module_name] = etree.Element('resources')
+                translations_roots[module_name].text = '\n\t'
 
             append_element_and_comment(translation_entry, previous_entry, translations_roots[module_name])
 
@@ -244,5 +244,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    split_translation_files()
 
