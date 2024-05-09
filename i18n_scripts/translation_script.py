@@ -152,7 +152,7 @@ def get_languages_dirs(modules_dir):
 
     Returns:
         list: A list of directories containing language files for translation. Each directory represents
-              a specific language and ends with the '-values' extension.
+              a specific language and starts with the 'values-' extension.
 
     Example:
         Input:
@@ -226,6 +226,10 @@ def split_translation_files(modules_dir=None):
     for lang_dir in languages_dirs:
         translations = separate_translation_to_modules(modules_dir, lang_dir)
         for module, root in translations.items():
+
+            # Unindent the resources closing tag.
+            root[-1].tail = '\n'
+
             write_translation_file(modules_dir, root, module, lang_dir)
 
 
@@ -244,5 +248,5 @@ def main():
 
 
 if __name__ == "__main__":
-    split_translation_files()
+    main()
 
