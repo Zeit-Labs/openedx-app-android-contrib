@@ -180,7 +180,7 @@ def combine_translation_files(modules_dir=None):
     Combine translation files from different modules into a single file.
     """
     if not modules_dir:
-        modules_dir = os.path.dirname(os.path.dirname(__file__))
+        modules_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     combined_root_element = combine_translations(modules_dir)
     write_translation_file(modules_dir, combined_root_element, 'i18n', 'values')
 
