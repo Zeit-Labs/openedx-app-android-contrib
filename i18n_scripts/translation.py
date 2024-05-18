@@ -264,7 +264,7 @@ def split_translation_files(modules_dir=None):
     """
     # Set the modules directory if not provided
     if not modules_dir:
-        modules_dir = os.path.dirname(os.path.dirname(__file__))
+        modules_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     # Get the directories containing language files
     languages_dirs = get_languages_dirs(modules_dir)
