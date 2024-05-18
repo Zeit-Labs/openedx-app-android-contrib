@@ -8,11 +8,11 @@ This script is designed to manage translations for a project by performing two o
 ## Usage
 
 ```bash
-python translation_script.py --extract
+python translation.py --extract
 
 or
 
-python translation_script.py --split
+python translation.py --split
 
 """
 import argparse
@@ -100,10 +100,10 @@ def get_modules_to_translate(modules_dir):
     Returns:
         list of str: A list of module names.
     """
-    # Get all directories within the modules directory except for 'I18N'
+    # Get all directories within the modules directory except for 'i18n'
     dirs = [
         directory for directory in os.listdir(modules_dir)
-        if os.path.isdir(os.path.join(modules_dir, directory)) and directory != 'I18N'
+        if os.path.isdir(os.path.join(modules_dir, directory)) and directory != 'i18n'
     ]
 
     modules_list = []
@@ -182,7 +182,7 @@ def combine_translation_files(modules_dir=None):
     if not modules_dir:
         modules_dir = os.path.dirname(os.path.dirname(__file__))
     combined_root_element = combine_translations(modules_dir)
-    write_translation_file(modules_dir, combined_root_element, 'I18N', 'values')
+    write_translation_file(modules_dir, combined_root_element, 'i18n', 'values')
 
 
 def get_languages_dirs(modules_dir):
@@ -202,7 +202,7 @@ def get_languages_dirs(modules_dir):
         Output:
             ['values-ar', 'values-uk', ...]
     """
-    lang_parent_dir = os.path.join(modules_dir, 'I18N', 'src', 'main', 'res')
+    lang_parent_dir = os.path.join(modules_dir, 'i18n', 'src', 'main', 'res')
     languages_dirs = [
         directory for directory in os.listdir(lang_parent_dir)
         if (
@@ -231,7 +231,7 @@ def separate_translation_to_modules(modules_dir, lang_dir):
     """
     translations_roots = {}
     # Parse the translation file
-    file_path = os.path.join(modules_dir, 'I18N', 'src', 'main', 'res', lang_dir, 'strings.xml')
+    file_path = os.path.join(modules_dir, 'i18n', 'src', 'main', 'res', lang_dir, 'strings.xml')
     module_translations_tree = etree.parse(file_path)
     root = module_translations_tree.getroot()
     previous_entry = None
@@ -297,4 +297,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
