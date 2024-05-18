@@ -6,7 +6,7 @@ translation_requirements:
 
 pull_translations: clean_translations_temp_directory
 	atlas pull $(ATLAS_OPTIONS) translations/openedx-app-android/i18n:i18n
-	python i18n_scripts/translation_script.py --split
+	python i18n_scripts/translation.py --split
 
 extract_translations: clean_translations_temp_directory
-	python i18n_scripts/translation_script.py --extract
+	python i18n_scripts/translation.py --extract
